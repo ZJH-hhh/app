@@ -17,6 +17,7 @@ class Player extends AcGameObject {
         this.is_me = is_me;
         this.eps = 0.1;
         this.friction = 0.9;
+        this.spent_time = 0;
 
         this.cur_skill = null;
     }
@@ -105,6 +106,16 @@ class Player extends AcGameObject {
     }
 
     update() {
+        this.spent_time += this.timedelta / 1000;
+        if (!this.is_me && this.spent_time > 5 && Math.random() < 1 / 180.0) {
+            let player = this.playground.players[Math.floor(Math.random() * this.playground.players.length)];
+            if (player !== this) {
+                let tx = player.x + player.speed * player.vx * player.timedelta / 1000 * 0.3;
+                let ty = player.y + player.speed * player.vy * player.timedelta / 1000 * 0.3;
+                this.shoot_fireball(tx, ty);
+            }
+        }
+
         if (this.damage_speed > 10) {
             this.vx = this.vy = 0;
             this.move_length = 0;
@@ -135,5 +146,13 @@ class Player extends AcGameObject {
         this.ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
         this.ctx.fillStyle = this.color;
         this.ctx.fill();
+    }
+
+    before_destroy() {
+        for (let i = 0; i < this.playground.players.length; i ++ ) {
+            if (this.playground.players[i] === this) {
+                this.playground.players.splice(i, 1);
+            }
+        }
     }
 }
