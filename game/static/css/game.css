@@ -72,7 +72,7 @@
     cursor: pointer;
 }
 
-.ac-game-settings-error-messages {
+.ac-game-settings-error-message {
     color: red;
     font-size: 0.8vh;
     display: inline;
