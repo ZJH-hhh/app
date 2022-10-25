@@ -676,8 +676,12 @@ class Settings {
 
 
     start() {
-        this.getinfo();
-        this.add_listening_events();
+        if (this.platform === "ACAPP") {
+            this.getinfo_acapp();
+        } else {
+            this.getinfo_web();
+            this.add_listening_events();
+        }
     }
 
     register() { // 打开注册界面
@@ -690,7 +694,35 @@ class Settings {
         this.$login.show();
     }
 
-    getinfo() {
+    acapp_login(appid, redirect_uri, scope, state) {
+        let outer = this;
+
+        this.root.AcWingOS.api.oauth2.authorize(appid, redirect_uri, scope, state, function(response) {
+            console.log("called from acapp_login");
+            console.log(response);
+            if (response.result === "success") {
+                outer.username = response.username;
+                outer.photo = response.photo;
+                outer.hide();
+                outer.root.menu.show();
+            }
+        });
+    }
+
+    getinfo_acapp() {
+        let outer = this;
+        $.ajax({
+            url: "https://app2606.acapp.acwing.com.cn/settings/acwing/acapp/apply_code/",
+            type: "GET",
+            success: function(response) {
+                if (response.result === "success") {
+                    outer.acapp_login(response.appid, response.redirect_uri, response.scope, response.state);
+                }
+            }
+        });
+    }
+
+    getinfo_web() {
         let outer = this;
 
         $.ajax({
@@ -723,6 +755,7 @@ class Settings {
 }
 export class AcGame {
     constructor(id, AcWingOS) {
+        console.log(AcWingOS);
         this.id = id;
         this.$ac_game = $('#' + id);
         this.AcWingOS = AcWingOS;
