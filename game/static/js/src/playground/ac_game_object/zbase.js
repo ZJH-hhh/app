@@ -25,11 +25,11 @@ class AcGameObject {
     update() { // 每一帧都会执行一次
     }
 
-    before_destroy() { // 删掉物体前执行一次
+    on_destroy() { // 删掉物体前执行一次
     }
 
     destroy() { // 删掉该物体
-        this.before_destroy();
+        this.on_destroy();
 
         for (let i = 0; i < AC_GAME_OBJECTS.length; i ++ ) {
             if (AC_GAME_OBJECTS[i] === this) { // 三个等号，js中加了一个判断类型相等的等号

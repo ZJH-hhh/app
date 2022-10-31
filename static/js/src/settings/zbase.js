@@ -146,7 +146,6 @@ class Settings {
             url: "https://app2606.acapp.acwing.com.cn/settings/acwing/web/apply_code/",
             type: "GET",
             success: function(response) {
-                console.log(response);
                 if (response.result === "success") {
                     window.location.replace(response.apply_code_url);
                 }
@@ -168,7 +167,6 @@ class Settings {
                 password: password,
             },
             success: function(response) {
-                console.log(response);
                 if (response.result === "success") {
                     location.reload();
                 } else {
@@ -194,7 +192,6 @@ class Settings {
                 password_confirm: password_confirm,
             },
             success: function(response) {
-                console.log(response);
                 if (response.result === "success") {
                     location.reload();
                 } else {
@@ -205,18 +202,19 @@ class Settings {
     }
 
     logout_on_remote() { // 在远程服务器登出
-        if (this.platform === "ACAPP") return false;
-
-        $.ajax({
-            url: "https://app2606.acapp.acwing.com.cn/settings/logout/",
-            type: "GET",
-            success: function(response) {
-                console.log(response);
-                if (response.result === "success") {
-                    location.reload();
+        if (this.platform === "ACAPP") {
+            this.root.AcWingOS.api.window.close();
+        } else {
+            $.ajax({
+                url: "https://app2606.acapp.acwing.com.cn/settings/logout/",
+                type: "GET",
+                success: function(response) {
+                    if (response.result === "success") {
+                        location.reload();
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
 
@@ -243,8 +241,6 @@ class Settings {
         let outer = this;
 
         this.root.AcWingOS.api.oauth2.authorize(appid, redirect_uri, scope, state, function(response) {
-            console.log("called from acapp_login");
-            console.log(response);
             if (response.result === "success") {
                 outer.username = response.username;
                 outer.photo = response.photo;
@@ -277,7 +273,6 @@ class Settings {
                 platform: outer.platform,
             },
             success: function(response) {
-                console.log(response);
                 if (response.result === "success") {
                     outer.username = response.username;
                     outer.photo = response.photo;
