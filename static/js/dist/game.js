@@ -116,11 +116,69 @@ let AC_GAME_ANIMATION = function(timestamp) {
 }
 
 requestAnimationFrame(AC_GAME_ANIMATION);
+class ChatField {
+    constructor(playground) {
+        this.playground = playground;
+        this.$history = $(`<div class="ac-game-chat-history">消息记录</div>`);
+        this.$input = $(`<input type="text" class="ac-game-chat-input">`);
+
+        this.playground.$playground.append(this.$history);
+        this.playground.$playground.append(this.$input);
+
+        this.$history.show();
+        this.$input.hide();
+
+        this.start();
+    }
+
+    start() {
+        this.add_listening_events();
+    }
+
+    render_message(message) {
+        return $(`<div>${message}</div>`);
+    }
+
+    add_message(username, content) {
+        let message = `${username}: ${content}`;
+        this.$history.append(this.render_message(message));
+        this.$history.scrollTop(this.$history[0].scrollHeight);
+    }
+
+    add_listening_events() {
+        let outer = this;
+        this.$input.keydown(function(e) {
+            if (e.which === 27) {
+                outer.hide_input();
+                return false;
+            } else if (e.which === 13) {
+                let username = outer.playground.root.settings.username;
+                let content = outer.$input.val();
+                if (content){
+                    outer.$input.val(""); // 清空输入框
+                    outer.add_message(username, content);
+                    outer.playground.mps.send_message(username, content);
+                }
+                return false;
+            }
+        });
+    }
+
+    show_input() {
+        this.$input.show();
+        this.$input.focus();
+    }
+
+    hide_input() {
+        this.$input.hide();
+        this.playground.game_map.$canvas.focus();
+    }
+}
 class GameMap extends AcGameObject {
     constructor(playground) {
         super();
         this.playground = playground;
-        this.$canvas = $(`<canvas></canvas>`);
+        this.$canvas = $(`<canvas tabindex=0></canvas>`);
         this.ctx = this.$canvas[0].getContext("2d");
         this.ctx.canvas.width = this.playground.width;
         this.ctx.canvas.height = this.playground.height;
@@ -128,6 +186,7 @@ class GameMap extends AcGameObject {
     }
 
     start() {
+        this.$canvas.focus();
     }
 
     resize() {
@@ -286,7 +345,7 @@ class Player extends AcGameObject {
         });
         this.playground.game_map.$canvas.mousedown(function(e) {
             if (outer.playground.state !== "fighting")
-                return false;
+                return true;
 
             const rect = outer.ctx.canvas.getBoundingClientRect();
             if (e.which === 3) {
@@ -324,7 +383,19 @@ class Player extends AcGameObject {
             }
         });
 
-        $(window).keydown(function(e) {
+        this.playground.game_map.$canvas.keydown(function(e) {
+            if (e.which === 13) { // enter
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.chat_field.show_input(); // 打开聊天框
+                    return false;
+                }
+            } else if (e.which === 27) { // esc
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.chat_field.hide_input(); // 关闭聊天框
+                    return false;
+                }
+            }
+
             if (outer.playground.state !== "fighting")
                 return true;
 
@@ -679,6 +750,8 @@ class MultiPlayerSocket {
                 outer.receive_attack(uuid, data.attackee_uuid, data.x, data.y, data.angle, data.damage, data.fireball_uuid);
             } else if (event === "blink") {
                 outer.receive_blink(uuid, data.tx, data.ty);
+            } else if (event === "message") {
+                outer.receive_message(uuid, data.username, data.content);
             }
         };
     }
@@ -795,6 +868,20 @@ class MultiPlayerSocket {
             player.blink(tx, ty);
         }
     }
+
+    send_message(username, content) {
+        let outer = this;
+        this.ws.send(JSON.stringify({
+            "event": "message",
+            "uuid": outer.uuid,
+            "username": username,
+            "content": content,
+        }));
+    }
+
+    receive_message(uuid, username, content) {
+        this.playground.chat_field.add_message(username, content);
+    }
 }
 class AcGamePlayground {
     constructor(root) {
@@ -854,6 +941,7 @@ class AcGamePlayground {
                 this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, this.get_random_color(), 0.15, "robot"));
             }
         } else if (mode === "multi mode") {
+            this.chat_field = new ChatField(this);
             this.mps = new MultiPlayerSocket(this);
             this.mps.uuid = this.players[0].uuid;
 
