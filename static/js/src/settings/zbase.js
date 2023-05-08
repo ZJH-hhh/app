@@ -153,31 +153,31 @@ class Settings {
         });
     }
 
-    login_on_remote() { // 在远程服务器登录
-        let username = this.$login_username.val();
-        let password = this.$login_password.val();
-        let outer = this;
+    login_on_remote(username, password) { // 在远程服务器登录
+        username = username || this.$login_username.val();
+        password = password || this.$login_password.val();
         this.$login_error_message.empty();
 
         $.ajax({
-            url: "https://app2606.acapp.acwing.com.cn/settings/login/",
-            type: "GET",
+            url: "https://app2606.acapp.acwing.com.cn/settings/api/token/",
+            type: "POST",
             data: {
                 username: username,
                 password: password,
             },
-            success: function(response) {
-                if (response.result === "success") {
-                    location.reload();
-                } else {
-                    outer.$login_error_message.html(response.result);
-                }
+            success: response => {
+                this.root.access = response.access;
+                this.root.refresh = response.refresh;
+                this.getinfo_web();
+                this.refresh_jwt_token();
+            },
+            error: () => {
+                this.$login_error_message.html("用户名或密码错误");
             }
         });
     }
 
     register_on_remote() { // 在远程服务器上注册
-        let outer = this;
         let username = this.$register_username.val();
         let password = this.$register_password.val();
         let password_confirm = this.$register_password_confirm.val();
@@ -185,17 +185,17 @@ class Settings {
 
         $.ajax({
             url: "https://app2606.acapp.acwing.com.cn/settings/register/",
-            type: "GET",
+            type: "POST",
             data: {
                 username: username,
                 password: password,
                 password_confirm: password_confirm,
             },
-            success: function(response) {
+            success: response => {
                 if (response.result === "success") {
-                    location.reload();
+                    this.login_on_remote(username, password);
                 } else {
-                    outer.$register_error_message.html(response.result);
+                    this.$register_error_message.html(response.result);
                 }
             }
         });
@@ -205,15 +205,9 @@ class Settings {
         if (this.platform === "ACAPP") {
             this.root.AcWingOS.api.window.close();
         } else {
-            $.ajax({
-                url: "https://app2606.acapp.acwing.com.cn/settings/logout/",
-                type: "GET",
-                success: function(response) {
-                    if (response.result === "success") {
-                        location.reload();
-                    }
-                }
-            });
+            this.root.access = "";
+            this.root.refresh = "";
+            location.href = "/";
         }
     }
 
@@ -222,7 +216,12 @@ class Settings {
         if (this.platform === "ACAPP") {
             this.getinfo_acapp();
         } else {
-            this.getinfo_web();
+            if (this.root.access) {
+               this.getinfo_web();
+                this.refresh_jwt_token();
+            } else {
+                this.login();
+            }
             this.add_listening_events();
         }
     }
@@ -250,6 +249,21 @@ class Settings {
         });
     }
 
+    refresh_jwt_token() {
+        setInterval(() => {
+            $.ajax({
+                url: "https://app2606.acapp.acwing.com.cn/settings/api/token/refresh/",
+                type: "POST",
+                data: {
+                    refresh: this.root.refresh,
+                },
+                success: response => {
+                    this.root.access = response.access;
+                }
+            })
+        }, 4.5 * 60 * 1000);
+    }
+
     getinfo_acapp() {
         let outer = this;
         $.ajax({
@@ -272,7 +286,11 @@ class Settings {
             data: {
                 platform: outer.platform,
             },
+            headers: {
+                "Authorization": "Bearer " + this.root.access,
+            },
             success: function(response) {
+                console.log(response);
                 if (response.result === "success") {
                     outer.username = response.username;
                     outer.photo = response.photo;
